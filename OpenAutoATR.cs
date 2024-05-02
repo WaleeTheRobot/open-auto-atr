@@ -2,6 +2,7 @@
 #endregion
 
 //This namespace holds Indicators in this folder and is required. Do not change it. 
+using NinjaTrader.Gui;
 using NinjaTrader.Gui.Chart;
 using System;
 using System.Collections.Generic;
@@ -135,8 +136,8 @@ namespace NinjaTrader.NinjaScript.Indicators
         [Browsable(false)]
         public string HighColorSerialize
         {
-            get { return BrushToString(_highColor); }
-            set { _highColor = StringToBrush(value); }
+            get { return Serialize.BrushToString(_highColor); }
+            set { _highColor = Serialize.StringToBrush(value); }
         }
 
         [NinjaScriptProperty]
@@ -151,8 +152,8 @@ namespace NinjaTrader.NinjaScript.Indicators
         [Browsable(false)]
         public string MedianColorSerialize
         {
-            get { return BrushToString(_medianColor); }
-            set { _medianColor = StringToBrush(value); }
+            get { return Serialize.BrushToString(_medianColor); }
+            set { _medianColor = Serialize.StringToBrush(value); }
         }
 
         [NinjaScriptProperty]
@@ -167,8 +168,8 @@ namespace NinjaTrader.NinjaScript.Indicators
         [Browsable(false)]
         public string LowColorSerialize
         {
-            get { return BrushToString(_lowColor); }
-            set { _lowColor = StringToBrush(value); }
+            get { return Serialize.BrushToString(_lowColor); }
+            set { _lowColor = Serialize.StringToBrush(value); }
         }
 
         [NinjaScriptProperty]
@@ -183,8 +184,8 @@ namespace NinjaTrader.NinjaScript.Indicators
         [Browsable(false)]
         public string UpperRangeColorSerialize
         {
-            get { return BrushToString(_upperRangeColor); }
-            set { _upperRangeColor = StringToBrush(value); }
+            get { return Serialize.BrushToString(_upperRangeColor); }
+            set { _upperRangeColor = Serialize.StringToBrush(value); }
         }
 
         [NinjaScriptProperty]
@@ -199,27 +200,8 @@ namespace NinjaTrader.NinjaScript.Indicators
         [Browsable(false)]
         public string LowerRangeColorSerialize
         {
-            get { return BrushToString(_lowerRangeColor); }
-            set { _lowerRangeColor = StringToBrush(value); }
-        }
-
-        private static string BrushToString(Brush brush)
-        {
-            if (brush is SolidColorBrush solidColorBrush)
-            {
-                Color color = solidColorBrush.Color;
-                return $"#{color.A:X2}{color.R:X2}{color.G:X2}{color.B:X2}";
-            }
-            return null;
-        }
-
-        private static Brush StringToBrush(string colorString)
-        {
-            if (string.IsNullOrEmpty(colorString))
-                return Brushes.Transparent;
-
-            Color color = (Color)ColorConverter.ConvertFromString(colorString);
-            return new SolidColorBrush(color);
+            get { return Serialize.BrushToString(_lowerRangeColor); }
+            set { _lowerRangeColor = Serialize.StringToBrush(value); }
         }
 
         protected override void OnStateChange()
