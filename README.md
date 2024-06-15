@@ -8,6 +8,9 @@ Open Auto ATR displays the median ATR for the last `Median Period`. It will auto
 
 For usage, you can download the zip containing the word import in the release page. You can import this zip file similar to importing a normal NinjaTrader Add-On. https://github.com/WaleeTheRobot/open-auto-atr/releases
 
+You can also download it at NinjaTrader Ecosystem. It may take a few days for them to update to the latest version found here on GitHub. 
+https://ninjatraderecosystem.com/user-app-share-download/auto-median-average-true-range
+
 # Trade Ideas
 
 - Use the high, low or median lines as targets or stops
