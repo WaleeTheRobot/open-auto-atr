@@ -25,15 +25,6 @@ namespace NinjaTrader.NinjaScript.Indicators
         public double UpperRange { get; private set; }
         public double LowerRange { get; private set; }
 
-        public void Reset()
-        {
-            HighPlusMedianAtr = 0;
-            LowMinusMedianAtr = 0;
-            HighLowMedianAtr = 0;
-            UpperRange = 0;
-            LowerRange = 0;
-        }
-
         public void SetMedianATR(List<double> atrs)
         {
             if (atrs == null || atrs.Count == 0)
@@ -83,6 +74,7 @@ namespace NinjaTrader.NinjaScript.Indicators
 
     public class OpenAutoATR : Indicator
     {
+        public const string GROUP_NAME_GENERAL = "General";
         public const string GROUP_NAME = "Open Auto ATR";
 
         private AutoATR _autoATR;
@@ -91,6 +83,21 @@ namespace NinjaTrader.NinjaScript.Indicators
         private Brush _lowColor;
         private Brush _upperRangeColor;
         private Brush _lowerRangeColor;
+        private Brush _atrBlockBackgroundColor;
+        private Brush _atrBlockTextColor;
+
+        #region General Properties
+
+        [NinjaScriptProperty]
+        [Display(Name = "Version", Description = "Open Auto ATR version.", Order = 0, GroupName = GROUP_NAME_GENERAL)]
+        [ReadOnly(true)]
+        public string Version
+        {
+            get { return "1.1.0"; }
+            set { }
+        }
+
+        #endregion
 
         [NinjaScriptProperty]
         [Display(Name = "ATR", Description = "The ATR period.", Order = 0, GroupName = GROUP_NAME)]
@@ -204,6 +211,50 @@ namespace NinjaTrader.NinjaScript.Indicators
             set { _lowerRangeColor = Serialize.StringToBrush(value); }
         }
 
+        [NinjaScriptProperty]
+        [Display(Name = "Display ATR Block", Description = "Enable to display the ATR block", Order = 13, GroupName = GROUP_NAME)]
+        public bool DisplayATRBlock { get; set; }
+
+        [NinjaScriptProperty]
+        [Display(Name = "ATR Block Top Offset", Description = "The offset for the ATR block from the top.", Order = 14, GroupName = GROUP_NAME)]
+        public float ATRBlockTopOffset { get; set; }
+
+        [NinjaScriptProperty]
+        [Display(Name = "ATR Block Left Offset", Description = "The offset for the ATR block from the left.", Order = 15, GroupName = GROUP_NAME)]
+        public float ATRBlockLeftOffset { get; set; }
+
+        [NinjaScriptProperty]
+        [XmlIgnore]
+        [Display(Name = "ATR Block Background Color", Description = "The background color for the ATR block.", Order = 16, GroupName = GROUP_NAME)]
+        public Brush ATRBlockBackgroundColor
+        {
+            get { return _atrBlockBackgroundColor; }
+            set { _atrBlockBackgroundColor = value; }
+        }
+
+        [Browsable(false)]
+        public string ATRBlockBackgroundColorSerialize
+        {
+            get { return Serialize.BrushToString(_atrBlockBackgroundColor); }
+            set { _atrBlockBackgroundColor = Serialize.StringToBrush(value); }
+        }
+
+        [NinjaScriptProperty]
+        [XmlIgnore]
+        [Display(Name = "ATR Block Text Color", Description = "The text color for the ATR block.", Order = 17, GroupName = GROUP_NAME)]
+        public Brush ATRBlockTextColor
+        {
+            get { return _atrBlockTextColor; }
+            set { _atrBlockTextColor = value; }
+        }
+
+        [Browsable(false)]
+        public string ATRBlockTextColorSerialize
+        {
+            get { return Serialize.BrushToString(_atrBlockTextColor); }
+            set { _atrBlockTextColor = Serialize.StringToBrush(value); }
+        }
+
         protected override void OnStateChange()
         {
             if (State == State.SetDefaults)
@@ -236,6 +287,12 @@ namespace NinjaTrader.NinjaScript.Indicators
                 LowColor = Brushes.DarkGreen;
                 UpperRangeColor = Brushes.DarkRed;
                 LowerRangeColor = Brushes.DarkGreen;
+
+                DisplayATRBlock = true;
+                ATRBlockTopOffset = 10;
+                ATRBlockLeftOffset = 10;
+                ATRBlockBackgroundColor = Brushes.Black;
+                ATRBlockTextColor = Brushes.White;
             }
             else if (State == State.Configure)
             {
@@ -299,6 +356,11 @@ namespace NinjaTrader.NinjaScript.Indicators
                 DrawLine(chartWidth, rightOffset, fixedLength, highBrush, _autoATR.HighPlusMedianAtr, chartScale);
                 DrawLine(chartWidth, rightOffset, fixedLength, medianBrush, _autoATR.HighLowMedianAtr, chartScale);
                 DrawLine(chartWidth, rightOffset, fixedLength, lowBrush, _autoATR.LowMinusMedianAtr, chartScale);
+
+                if (DisplayATRBlock)
+                {
+                    DrawATRBlock(chartControl, chartScale, _autoATR.Current, _autoATR.HighPlusMedianAtr - _autoATR.HighLowMedianAtr);
+                }
             }
         }
 
@@ -336,6 +398,38 @@ namespace NinjaTrader.NinjaScript.Indicators
             var color = ((SolidColorBrush)brush).Color;
             return new SharpDX.Color(color.R, color.G, color.B, alpha);
         }
+
+        private void DrawATRBlock(ChartControl chartControl, ChartScale chartScale, double currentATR, double priceDistance)
+        {
+            float x = ATRBlockLeftOffset;
+            float y = ATRBlockTopOffset;
+            float width = 135;
+            float height = 40;
+            float padding = 5;
+
+            var backgroundBrush = new SharpDX.Direct2D1.SolidColorBrush(RenderTarget, ConvertToDxColor(ATRBlockBackgroundColor, 255));
+            var rect = new SharpDX.RectangleF(x, y, width, height);
+
+            RenderTarget.FillRectangle(rect, backgroundBrush);
+
+            var textFormat = new SharpDX.DirectWrite.TextFormat(new SharpDX.DirectWrite.Factory(), "Arial", SharpDX.DirectWrite.FontWeight.Normal, SharpDX.DirectWrite.FontStyle.Normal, 12)
+            {
+                TextAlignment = SharpDX.DirectWrite.TextAlignment.Leading,
+                ParagraphAlignment = SharpDX.DirectWrite.ParagraphAlignment.Near
+            };
+
+            var textBrush = new SharpDX.Direct2D1.SolidColorBrush(RenderTarget, ConvertToDxColor(ATRBlockTextColor, 255));
+            var text = $"ATR: {currentATR}\nPrice Distance: {Math.Round(priceDistance, 2)}";
+            var textLayout = new SharpDX.DirectWrite.TextLayout(new SharpDX.DirectWrite.Factory(), text, textFormat, width - 2 * padding, height - 2 * padding);
+
+            RenderTarget.DrawTextLayout(new SharpDX.Vector2(x + padding, y + padding), textLayout, textBrush);
+
+            backgroundBrush.Dispose();
+            textBrush.Dispose();
+            textFormat.Dispose();
+            textLayout.Dispose();
+        }
+
     }
 }
 
@@ -346,18 +440,18 @@ namespace NinjaTrader.NinjaScript.Indicators
 	public partial class Indicator : NinjaTrader.Gui.NinjaScript.IndicatorRenderBase
 	{
 		private OpenAutoATR[] cacheOpenAutoATR;
-		public OpenAutoATR OpenAutoATR(int aTRPeriod, double aTRMultiplier, double medianPeriod, float fixedLength, float rightOffset, double rangePercentage, byte lineOpacity, byte rangeOpacity, Brush highColor, Brush medianColor, Brush lowColor, Brush upperRangeColor, Brush lowerRangeColor)
+		public OpenAutoATR OpenAutoATR(string version, int aTRPeriod, double aTRMultiplier, double medianPeriod, float fixedLength, float rightOffset, double rangePercentage, byte lineOpacity, byte rangeOpacity, Brush highColor, Brush medianColor, Brush lowColor, Brush upperRangeColor, Brush lowerRangeColor, bool displayATRBlock, float aTRBlockTopOffset, float aTRBlockLeftOffset, Brush aTRBlockBackgroundColor, Brush aTRBlockTextColor)
 		{
-			return OpenAutoATR(Input, aTRPeriod, aTRMultiplier, medianPeriod, fixedLength, rightOffset, rangePercentage, lineOpacity, rangeOpacity, highColor, medianColor, lowColor, upperRangeColor, lowerRangeColor);
+			return OpenAutoATR(Input, version, aTRPeriod, aTRMultiplier, medianPeriod, fixedLength, rightOffset, rangePercentage, lineOpacity, rangeOpacity, highColor, medianColor, lowColor, upperRangeColor, lowerRangeColor, displayATRBlock, aTRBlockTopOffset, aTRBlockLeftOffset, aTRBlockBackgroundColor, aTRBlockTextColor);
 		}
 
-		public OpenAutoATR OpenAutoATR(ISeries<double> input, int aTRPeriod, double aTRMultiplier, double medianPeriod, float fixedLength, float rightOffset, double rangePercentage, byte lineOpacity, byte rangeOpacity, Brush highColor, Brush medianColor, Brush lowColor, Brush upperRangeColor, Brush lowerRangeColor)
+		public OpenAutoATR OpenAutoATR(ISeries<double> input, string version, int aTRPeriod, double aTRMultiplier, double medianPeriod, float fixedLength, float rightOffset, double rangePercentage, byte lineOpacity, byte rangeOpacity, Brush highColor, Brush medianColor, Brush lowColor, Brush upperRangeColor, Brush lowerRangeColor, bool displayATRBlock, float aTRBlockTopOffset, float aTRBlockLeftOffset, Brush aTRBlockBackgroundColor, Brush aTRBlockTextColor)
 		{
 			if (cacheOpenAutoATR != null)
 				for (int idx = 0; idx < cacheOpenAutoATR.Length; idx++)
-					if (cacheOpenAutoATR[idx] != null && cacheOpenAutoATR[idx].ATRPeriod == aTRPeriod && cacheOpenAutoATR[idx].ATRMultiplier == aTRMultiplier && cacheOpenAutoATR[idx].MedianPeriod == medianPeriod && cacheOpenAutoATR[idx].FixedLength == fixedLength && cacheOpenAutoATR[idx].RightOffset == rightOffset && cacheOpenAutoATR[idx].RangePercentage == rangePercentage && cacheOpenAutoATR[idx].LineOpacity == lineOpacity && cacheOpenAutoATR[idx].RangeOpacity == rangeOpacity && cacheOpenAutoATR[idx].HighColor == highColor && cacheOpenAutoATR[idx].MedianColor == medianColor && cacheOpenAutoATR[idx].LowColor == lowColor && cacheOpenAutoATR[idx].UpperRangeColor == upperRangeColor && cacheOpenAutoATR[idx].LowerRangeColor == lowerRangeColor && cacheOpenAutoATR[idx].EqualsInput(input))
+					if (cacheOpenAutoATR[idx] != null && cacheOpenAutoATR[idx].Version == version && cacheOpenAutoATR[idx].ATRPeriod == aTRPeriod && cacheOpenAutoATR[idx].ATRMultiplier == aTRMultiplier && cacheOpenAutoATR[idx].MedianPeriod == medianPeriod && cacheOpenAutoATR[idx].FixedLength == fixedLength && cacheOpenAutoATR[idx].RightOffset == rightOffset && cacheOpenAutoATR[idx].RangePercentage == rangePercentage && cacheOpenAutoATR[idx].LineOpacity == lineOpacity && cacheOpenAutoATR[idx].RangeOpacity == rangeOpacity && cacheOpenAutoATR[idx].HighColor == highColor && cacheOpenAutoATR[idx].MedianColor == medianColor && cacheOpenAutoATR[idx].LowColor == lowColor && cacheOpenAutoATR[idx].UpperRangeColor == upperRangeColor && cacheOpenAutoATR[idx].LowerRangeColor == lowerRangeColor && cacheOpenAutoATR[idx].DisplayATRBlock == displayATRBlock && cacheOpenAutoATR[idx].ATRBlockTopOffset == aTRBlockTopOffset && cacheOpenAutoATR[idx].ATRBlockLeftOffset == aTRBlockLeftOffset && cacheOpenAutoATR[idx].ATRBlockBackgroundColor == aTRBlockBackgroundColor && cacheOpenAutoATR[idx].ATRBlockTextColor == aTRBlockTextColor && cacheOpenAutoATR[idx].EqualsInput(input))
 						return cacheOpenAutoATR[idx];
-			return CacheIndicator<OpenAutoATR>(new OpenAutoATR(){ ATRPeriod = aTRPeriod, ATRMultiplier = aTRMultiplier, MedianPeriod = medianPeriod, FixedLength = fixedLength, RightOffset = rightOffset, RangePercentage = rangePercentage, LineOpacity = lineOpacity, RangeOpacity = rangeOpacity, HighColor = highColor, MedianColor = medianColor, LowColor = lowColor, UpperRangeColor = upperRangeColor, LowerRangeColor = lowerRangeColor }, input, ref cacheOpenAutoATR);
+			return CacheIndicator<OpenAutoATR>(new OpenAutoATR(){ Version = version, ATRPeriod = aTRPeriod, ATRMultiplier = aTRMultiplier, MedianPeriod = medianPeriod, FixedLength = fixedLength, RightOffset = rightOffset, RangePercentage = rangePercentage, LineOpacity = lineOpacity, RangeOpacity = rangeOpacity, HighColor = highColor, MedianColor = medianColor, LowColor = lowColor, UpperRangeColor = upperRangeColor, LowerRangeColor = lowerRangeColor, DisplayATRBlock = displayATRBlock, ATRBlockTopOffset = aTRBlockTopOffset, ATRBlockLeftOffset = aTRBlockLeftOffset, ATRBlockBackgroundColor = aTRBlockBackgroundColor, ATRBlockTextColor = aTRBlockTextColor }, input, ref cacheOpenAutoATR);
 		}
 	}
 }
@@ -366,14 +460,14 @@ namespace NinjaTrader.NinjaScript.MarketAnalyzerColumns
 {
 	public partial class MarketAnalyzerColumn : MarketAnalyzerColumnBase
 	{
-		public Indicators.OpenAutoATR OpenAutoATR(int aTRPeriod, double aTRMultiplier, double medianPeriod, float fixedLength, float rightOffset, double rangePercentage, byte lineOpacity, byte rangeOpacity, Brush highColor, Brush medianColor, Brush lowColor, Brush upperRangeColor, Brush lowerRangeColor)
+		public Indicators.OpenAutoATR OpenAutoATR(string version, int aTRPeriod, double aTRMultiplier, double medianPeriod, float fixedLength, float rightOffset, double rangePercentage, byte lineOpacity, byte rangeOpacity, Brush highColor, Brush medianColor, Brush lowColor, Brush upperRangeColor, Brush lowerRangeColor, bool displayATRBlock, float aTRBlockTopOffset, float aTRBlockLeftOffset, Brush aTRBlockBackgroundColor, Brush aTRBlockTextColor)
 		{
-			return indicator.OpenAutoATR(Input, aTRPeriod, aTRMultiplier, medianPeriod, fixedLength, rightOffset, rangePercentage, lineOpacity, rangeOpacity, highColor, medianColor, lowColor, upperRangeColor, lowerRangeColor);
+			return indicator.OpenAutoATR(Input, version, aTRPeriod, aTRMultiplier, medianPeriod, fixedLength, rightOffset, rangePercentage, lineOpacity, rangeOpacity, highColor, medianColor, lowColor, upperRangeColor, lowerRangeColor, displayATRBlock, aTRBlockTopOffset, aTRBlockLeftOffset, aTRBlockBackgroundColor, aTRBlockTextColor);
 		}
 
-		public Indicators.OpenAutoATR OpenAutoATR(ISeries<double> input , int aTRPeriod, double aTRMultiplier, double medianPeriod, float fixedLength, float rightOffset, double rangePercentage, byte lineOpacity, byte rangeOpacity, Brush highColor, Brush medianColor, Brush lowColor, Brush upperRangeColor, Brush lowerRangeColor)
+		public Indicators.OpenAutoATR OpenAutoATR(ISeries<double> input , string version, int aTRPeriod, double aTRMultiplier, double medianPeriod, float fixedLength, float rightOffset, double rangePercentage, byte lineOpacity, byte rangeOpacity, Brush highColor, Brush medianColor, Brush lowColor, Brush upperRangeColor, Brush lowerRangeColor, bool displayATRBlock, float aTRBlockTopOffset, float aTRBlockLeftOffset, Brush aTRBlockBackgroundColor, Brush aTRBlockTextColor)
 		{
-			return indicator.OpenAutoATR(input, aTRPeriod, aTRMultiplier, medianPeriod, fixedLength, rightOffset, rangePercentage, lineOpacity, rangeOpacity, highColor, medianColor, lowColor, upperRangeColor, lowerRangeColor);
+			return indicator.OpenAutoATR(input, version, aTRPeriod, aTRMultiplier, medianPeriod, fixedLength, rightOffset, rangePercentage, lineOpacity, rangeOpacity, highColor, medianColor, lowColor, upperRangeColor, lowerRangeColor, displayATRBlock, aTRBlockTopOffset, aTRBlockLeftOffset, aTRBlockBackgroundColor, aTRBlockTextColor);
 		}
 	}
 }
@@ -382,14 +476,14 @@ namespace NinjaTrader.NinjaScript.Strategies
 {
 	public partial class Strategy : NinjaTrader.Gui.NinjaScript.StrategyRenderBase
 	{
-		public Indicators.OpenAutoATR OpenAutoATR(int aTRPeriod, double aTRMultiplier, double medianPeriod, float fixedLength, float rightOffset, double rangePercentage, byte lineOpacity, byte rangeOpacity, Brush highColor, Brush medianColor, Brush lowColor, Brush upperRangeColor, Brush lowerRangeColor)
+		public Indicators.OpenAutoATR OpenAutoATR(string version, int aTRPeriod, double aTRMultiplier, double medianPeriod, float fixedLength, float rightOffset, double rangePercentage, byte lineOpacity, byte rangeOpacity, Brush highColor, Brush medianColor, Brush lowColor, Brush upperRangeColor, Brush lowerRangeColor, bool displayATRBlock, float aTRBlockTopOffset, float aTRBlockLeftOffset, Brush aTRBlockBackgroundColor, Brush aTRBlockTextColor)
 		{
-			return indicator.OpenAutoATR(Input, aTRPeriod, aTRMultiplier, medianPeriod, fixedLength, rightOffset, rangePercentage, lineOpacity, rangeOpacity, highColor, medianColor, lowColor, upperRangeColor, lowerRangeColor);
+			return indicator.OpenAutoATR(Input, version, aTRPeriod, aTRMultiplier, medianPeriod, fixedLength, rightOffset, rangePercentage, lineOpacity, rangeOpacity, highColor, medianColor, lowColor, upperRangeColor, lowerRangeColor, displayATRBlock, aTRBlockTopOffset, aTRBlockLeftOffset, aTRBlockBackgroundColor, aTRBlockTextColor);
 		}
 
-		public Indicators.OpenAutoATR OpenAutoATR(ISeries<double> input , int aTRPeriod, double aTRMultiplier, double medianPeriod, float fixedLength, float rightOffset, double rangePercentage, byte lineOpacity, byte rangeOpacity, Brush highColor, Brush medianColor, Brush lowColor, Brush upperRangeColor, Brush lowerRangeColor)
+		public Indicators.OpenAutoATR OpenAutoATR(ISeries<double> input , string version, int aTRPeriod, double aTRMultiplier, double medianPeriod, float fixedLength, float rightOffset, double rangePercentage, byte lineOpacity, byte rangeOpacity, Brush highColor, Brush medianColor, Brush lowColor, Brush upperRangeColor, Brush lowerRangeColor, bool displayATRBlock, float aTRBlockTopOffset, float aTRBlockLeftOffset, Brush aTRBlockBackgroundColor, Brush aTRBlockTextColor)
 		{
-			return indicator.OpenAutoATR(input, aTRPeriod, aTRMultiplier, medianPeriod, fixedLength, rightOffset, rangePercentage, lineOpacity, rangeOpacity, highColor, medianColor, lowColor, upperRangeColor, lowerRangeColor);
+			return indicator.OpenAutoATR(input, version, aTRPeriod, aTRMultiplier, medianPeriod, fixedLength, rightOffset, rangePercentage, lineOpacity, rangeOpacity, highColor, medianColor, lowColor, upperRangeColor, lowerRangeColor, displayATRBlock, aTRBlockTopOffset, aTRBlockLeftOffset, aTRBlockBackgroundColor, aTRBlockTextColor);
 		}
 	}
 }
