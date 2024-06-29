@@ -4,6 +4,7 @@
 //This namespace holds Indicators in this folder and is required. Do not change it. 
 using NinjaTrader.Gui;
 using NinjaTrader.Gui.Chart;
+using NinjaTrader.NinjaScript.DrawingTools;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -93,7 +94,7 @@ namespace NinjaTrader.NinjaScript.Indicators
         [ReadOnly(true)]
         public string Version
         {
-            get { return "1.1.0"; }
+            get { return "1.2.0"; }
             set { }
         }
 
@@ -324,6 +325,10 @@ namespace NinjaTrader.NinjaScript.Indicators
             _autoATR.Current = Math.Round(ATR(ATRPeriod)[0], 2);
             _autoATR.SetMedianATR(atrs);
             _autoATR.SetPrices(High[0], Low[0]);
+
+            // Autoscale workaround
+            Draw.Rectangle(this, "atrHigh", IsAutoScale, 0, _autoATR.HighPlusMedianAtr, 0, _autoATR.HighPlusMedianAtr, Brushes.Transparent, Brushes.Transparent, 0);
+            Draw.Rectangle(this, "atrLow", IsAutoScale, 0, _autoATR.LowMinusMedianAtr, 0, _autoATR.LowMinusMedianAtr, Brushes.Transparent, Brushes.Transparent, 0);
         }
 
         protected override void OnRender(ChartControl chartControl, ChartScale chartScale)
